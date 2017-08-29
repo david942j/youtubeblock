@@ -1,5 +1,4 @@
 ;(function() {
-  // chrome.storage.sync.set({policy: {ids:[], substr:['周湯豪'] }})
   function response(data) {
     window.postMessage({
       type: 'FromContentScript',

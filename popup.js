@@ -99,7 +99,10 @@
   }
 
   function getPolicy(callback) {
-    getSync('policy', callback)
+    getSync('policy', function(p) {
+      if(!p) p = { ids: [], substr: [] }
+      callback(p)
+    })
   }
 
   function getLocal(name, callback) {
