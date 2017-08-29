@@ -1,7 +1,7 @@
 var Blocker = new function() {
-  let api = null
+  let thisObj
   let YT_PLAY = 1
-  return {
+  return thisObj = {
     work: function() {
       waitUntilObject(['window'], {
         checker: function(w) {
@@ -13,7 +13,7 @@ var Blocker = new function() {
         let orig = window[name]
         window[name] = function(e) {
           if(e == YT_PLAY && needSkip()) {
-            _yt_www.Gi().pauseVideo()
+            api().pauseVideo()
             tryUntilNext(curVideoId())
           }
           if(orig) return orig.apply(window, arguments)
@@ -24,6 +24,18 @@ var Blocker = new function() {
   }
 
   /* private functions */
+  function api() {
+    if(thisObj.api) return thisObj.api
+    return thisObj.api = (function(g) {
+      let name = Object.getOwnPropertyNames(g).find(function(e) {
+        if(! (g[e] && typeof g[e] == 'object' && Object.keys(g[e]).length == 1))
+          return false
+        return !!searchObject('player_', g[e])
+      })
+      return g[name][searchObject('player_', g[name])].api
+    })(_yt_www)
+  }
+
   function waitUntilObject(attrAry, options, callback) {
     let now = options['root'] || window
     let checker = options['checker'] || function(e) { return typeof now != 'undefined' }
@@ -37,14 +49,15 @@ var Blocker = new function() {
   }
 
   function tryUntilNext(skipId) {
+    console.log("Skip %s", skipId)
     if(curVideoId() == skipId) {
-      _yt_www.Gi().nextVideo()
+      api().nextVideo()
       setTimeout(function() { tryUntilNext(skipId) }, 500)
     }
   }
 
-  function searchObject(target) {
-    return Object.getOwnPropertyNames(window).find(function (p) {
+  function searchObject(target, from) {
+    return Object.getOwnPropertyNames(from || window).find(function (p) {
       return p.substring(0, target.length) == target
     })
   }
@@ -58,7 +71,7 @@ var Blocker = new function() {
   }
 
   function blacklist(videoId) {
-    return true
+    return ['29tEEaTN_Sc'].includes(videoId)
   }
 }
 
