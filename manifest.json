@@ -10,8 +10,12 @@
     "default_popup": "popup.html"
   },
   "permissions": [
-    "storage"
+    "storage", "tabs", "https://www.youtube.com/*"
   ],
+
+  "background": {
+    "scripts": ["background.js"]
+  },
 
   "content_scripts": [
     {

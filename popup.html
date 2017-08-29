@@ -1,16 +1,21 @@
 <!doctype html>
 <html>
   <head>
+    <meta charset="UTF-8">
     <title>Meow</title>
-    <style>
-    </style>
+    <link rel="stylesheet" type="text/css" href="popup.css"></link>
   </head>
-  <body>
-    <div id='blacklists'>
-      <p>Blocked Videos</p>
-      <ul></ul>
+  <body style='width: 200px'>
+    <div id='playing'>
     </div>
-    <script src="popup.js"></script>
+    <div>
+      <p>Blocked Videos</p>
+      <ul id='blocklist'></ul>
+    </div>
+    <div id='add-button'>
+      <span>➕</span>
+    </div>
+    <script type="text/javascript" src="popup.js"></script>
   </body>
 </html>
 

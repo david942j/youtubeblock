@@ -1,15 +1,19 @@
 var Blocker = new function() {
   let thisObj, block = null
   let YT_PLAY = 1
+  // to communicate with content script
   let tube = new function() {
     let response = null
     window.addEventListener('message', function(event) {
       if(event.data.type == 'FromContentScript')
-        if(response) response(event.data.data)
+        return response && response(event.data.data)
+      if(event.data.type == 'FromPopUp') {
+        if(event.data.data == 'reload') fetchPolicy()
+      }
     })
     return {
-      communiate: function(data, res) {
-        document.dispatchEvent(new CustomEvent('FromPageJS', { detail: data }))
+      communicate: function(detail, res) {
+        document.dispatchEvent(new CustomEvent('FromPageJS', { detail: detail }))
         response = res
       }
     }
@@ -42,9 +46,8 @@ var Blocker = new function() {
 
   return thisObj = {
     work: function() {
-      // fetch block pocliy from chrome.storage.sync
       fetchPolicy()
-      // wait for youbube js binding callbacks
+      // wait for youbube js binding done
       waitUntilObject(['window'], {
         checker: function(w) {
           return !!searchObject("ytPlayeronStateChangeplayer")
@@ -54,9 +57,16 @@ var Blocker = new function() {
         // hook state change
         let orig = window[name]
         window[name] = function(e) {
-          if(e == YT_PLAY && needSkip()) {
-            api().pauseVideo()
-            tryUntilNext(curVideoId())
+          if(e == YT_PLAY) {
+            if(needSkip()) {
+              api().pauseVideo()
+              tryUntilNext(curVideoId())
+            }
+            else {
+              tube.communicate({ type: 'set', data: {
+                key: 'local.cur_video', val: { id: curVideoId(), title: curVideoTitle() }
+              } })
+            }
           }
           if(orig) return orig.apply(window, arguments)
         }
@@ -118,8 +128,9 @@ var Blocker = new function() {
     return ytplayer.config.args.title
   }
 
+  // fetch block pocliy from chrome.storage.sync
   function fetchPolicy() {
-    tube.communiate('storage.policy', function(policy) {
+    tube.communicate({ type: 'get', data: { key: 'sync.policy' } }, function(policy) {
       block = new Block(policy)
     })
   }

@@ -1,0 +1,12 @@
+#add-button {
+  text-align: center;
+  background-color: #ece7df;
+  cursor: pointer;
+}
+#add-button:hover {
+  background-color: #dbd4c7;
+}
+
+#blocklist {
+  list-style-type: none;
+}
