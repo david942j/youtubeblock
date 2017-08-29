@@ -6,14 +6,23 @@
     <link rel="stylesheet" type="text/css" href="popup.css"></link>
   </head>
   <body style='width: 200px'>
-    <div id='playing'>
+    <div id='playing-block'>
+      <span>Now Playing:</span><br/>
+      <div id='playing'></div>
+      <div id='add-button'>🚫 Block now</div>
+    </div>
+    <hr class='split'/>
+    <div>
+      <span>Blocked Videos</span>
+      <ul id='blockids' class='blocklist'></ul>
     </div>
     <div>
-      <p>Blocked Videos</p>
-      <ul id='blocklist'></ul>
-    </div>
-    <div id='add-button'>
-      <span>➕</span>
+      <span>Blocked Titles</span>
+      <span>
+        <input id='input-substr' type='text' placeholder='title to be blocked'/>
+        <span class='button' id='add-substr'>➕</span>
+      </span>
+      <ul id='blocksubstr' class='blocklist'></ul>
     </div>
     <script type="text/javascript" src="popup.js"></script>
   </body>

@@ -8,7 +8,7 @@ var Blocker = new function() {
       if(event.data.type == 'FromContentScript')
         return response && response(event.data.data)
       if(event.data.type == 'FromPopUp') {
-        if(event.data.data == 'reload') fetchPolicy()
+        if(event.data.data == 'reload') fetchPolicy(function() { if(needSkip()) doSkip() })
       }
     })
     return {
@@ -58,10 +58,7 @@ var Blocker = new function() {
         let orig = window[name]
         window[name] = function(e) {
           if(e == YT_PLAY) {
-            if(needSkip()) {
-              api().pauseVideo()
-              tryUntilNext(curVideoId())
-            }
+            if(needSkip()) doSkip()
             else {
               tube.communicate({ type: 'set', data: {
                 key: 'local.cur_video', val: { id: curVideoId(), title: curVideoTitle() }
@@ -100,6 +97,11 @@ var Blocker = new function() {
     callback(now)
   }
 
+  function doSkip() {
+    api().pauseVideo()
+    tryUntilNext(curVideoId())
+  }
+
   function tryUntilNext(skipId) {
     console.log("Skip %s", skipId)
     if(curVideoId() == skipId) {
@@ -129,9 +131,10 @@ var Blocker = new function() {
   }
 
   // fetch block pocliy from chrome.storage.sync
-  function fetchPolicy() {
+  function fetchPolicy(callback) {
     tube.communicate({ type: 'get', data: { key: 'sync.policy' } }, function(policy) {
       block = new Block(policy)
+      if(callback) callback()
     })
   }
 

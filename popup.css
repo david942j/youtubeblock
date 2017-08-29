@@ -7,6 +7,15 @@
   background-color: #dbd4c7;
 }
 
-#blocklist {
+.blocklist {
   list-style-type: none;
 }
+
+.button {
+  cursor: pointer;
+}
+
+hr.split {
+  border-top: 1px dotted #8c8b8b;
+}
+
