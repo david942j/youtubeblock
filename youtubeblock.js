@@ -1,6 +1,8 @@
 var Blocker = new function() {
   let thisObj, block = null
   let YT_PLAY = 1
+  let videoConfig = null
+
   // to communicate with content script
   let tube = new function() {
     let response = null
@@ -8,7 +10,7 @@ var Blocker = new function() {
       if(event.data.type == 'FromContentScript')
         return response && response(event.data.data)
       if(event.data.type == 'FromPopUp') {
-        if(event.data.data == 'reload') fetchPolicy(function() { if(needSkip()) doSkip() })
+        if(event.data.data == 'reload') fetchPolicy(function() { checkSkip() })
       }
     })
     return {
@@ -47,6 +49,7 @@ var Blocker = new function() {
   return thisObj = {
     work: function() {
       fetchPolicy()
+      hookXML()
       // wait for youbube js binding done
       waitUntilObject(['window'], {
         checker: function(w) {
@@ -57,34 +60,18 @@ var Blocker = new function() {
         // hook state change
         let orig = window[name]
         window[name] = function(e) {
+          thisObj.state = e
           if(e == YT_PLAY) {
-            if(needSkip()) doSkip()
-            else {
-              tube.communicate({ type: 'set', data: {
-                key: 'local.cur_video', val: { id: curVideoId(), title: curVideoTitle() }
-              } })
-            }
+            console.log('play start %s', thisObj.skip)
+            checkSkip() // might do nothing
           }
           if(orig) return orig.apply(window, arguments)
         }
       })
-      return;
     }
   }
 
   /* private functions */
-  function api() {
-    if(thisObj.api) return thisObj.api
-    return thisObj.api = (function(g) {
-      let name = Object.getOwnPropertyNames(g).find(function(e) {
-        if(! (g[e] && typeof g[e] == 'object' && Object.keys(g[e]).length == 1))
-          return false
-        return !!searchObject('player_', g[e])
-      })
-      return g[name][searchObject('player_', g[name])].api
-    })(_yt_www)
-  }
-
   function waitUntilObject(attrAry, options, callback) {
     let now = options['root'] || window
     let checker = options['checker'] || function(e) { return typeof now != 'undefined' }
@@ -97,16 +84,32 @@ var Blocker = new function() {
     callback(now)
   }
 
+  // Skip videos when:
+  // 1. Video is playing
+  // 2. Url consistents with xhr response
+  // 3. Match skip policy
+  function checkSkip() {
+    if(thisObj.state != YT_PLAY) return false
+    if(getQueryVariable('v') != curVideoId()) return false
+    if(!needSkip()) return false
+    doSkip()
+  }
+
   function doSkip() {
-    api().pauseVideo()
+    console.log('doSkip')
+    // first pause the video
+    let ele = document.getElementsByClassName('ytp-play-button')[0]
+    if(ele) ele.click()
     tryUntilNext(curVideoId())
   }
 
   function tryUntilNext(skipId) {
     console.log("Skip %s", skipId)
     if(curVideoId() == skipId) {
-      api().nextVideo()
-      setTimeout(function() { tryUntilNext(skipId) }, 500)
+      let ele = document.getElementsByClassName('ytp-next-button')[0]
+      console.log(ele.href)
+      if(ele) ele.click()
+      setTimeout(function() { tryUntilNext(skipId) }, 1000)
     }
   }
 
@@ -123,11 +126,24 @@ var Blocker = new function() {
   }
 
   function curVideoId() {
-    return ytplayer.config.args.video_id
+    if(videoConfig) return videoConfig.video_id
+    return ''
+  }
+
+  function getQueryVariable(variable, url) {
+    url = url || window.location.href
+    let vars = url.substring(url.indexOf('?') + 1, url.length).split('&')
+    for (var i = 0; i < vars.length; i++) {
+      var pair = vars[i].split('=')
+      if (decodeURIComponent(pair[0]) == variable)
+        return decodeURIComponent(pair[1])
+    }
+    return ''
   }
 
   function curVideoTitle() {
-    return ytplayer.config.args.title
+    if(videoConfig) return videoConfig.title
+    return ''
   }
 
   // fetch block pocliy from chrome.storage.sync
@@ -136,6 +152,37 @@ var Blocker = new function() {
       block = new Block(policy)
       if(callback) callback()
     })
+  }
+
+  // Hook XMLHttpRequest::open
+  function hookXML() {
+    let origOpen = XMLHttpRequest.prototype.open;
+    function isFetchVideo(args) {
+      if(args[0] != 'GET') return false
+      let target = 'https://www.youtube.com/watch'
+      if(args[1].substr(0, target.length) != target) return false
+      return true
+    }
+    XMLHttpRequest.prototype.open = function() {
+      if(isFetchVideo(arguments)) {
+        console.log('fetched')
+        this.addEventListener('load', function() {
+          let data = JSON.parse(this.responseText)[2]
+          if(data.player) videoConfig = data.player.args
+          else videoConfig = data.data.swfcfg.args
+          console.log(curVideoTitle())
+          if(needSkip())
+            checkSkip() // might do nothing
+          else {
+            // set storage iff not matching policy
+            tube.communicate({ type: 'set', data: {
+              key: 'local.cur_video', val: { id: curVideoId(), title: curVideoTitle() }
+            } })
+          }
+        })
+      }
+      origOpen.apply(this, arguments);
+    }
   }
 
   function error(msg) {
